@@ -33,12 +33,16 @@ char ** parse_command(char *);
 
 int main(int argc, char **argv)
 {
-    if (argc > 1){
-    	fprintf(stderr, "Error: Do not enter command line arguments\n");
+    if (argc > 1){		//check if user enters arguments while launching the shell, and print an error message accordingly
+    	fprintf(stderr, "Error: Do not enter command line arguments --- ");
+    	for (int i = 0; argv[i] != NULL; i++){
+    		printf("%s ", argv[i]);
+    	}
+    	printf("\n");
     	return 1;
     }
     
-    else{
+    else{				//if user enters only one argument, run command prompt loop
     	user_prompt_loop();
     	return 0;
     }
@@ -47,16 +51,17 @@ int main(int argc, char **argv)
 
 void user_prompt_loop() 
 {
-    char *input;
-    char **parsedInput;
+    char *input;			//array of characters for collecting our command
+    char **parsedInput;		//array of strings to hold the parsed command
     
     while(1){
     	printf(">> ");
-    	input = get_user_command();
+    	input = get_user_command();		//accept user command
     	if (input == NULL){
     	    exit(1);
     	}
-    	//parsedInput = parse_command(input);
+    	
+    	parsedInput = parse_command(input);		//parse command
     	
     	break;
     }
@@ -65,18 +70,25 @@ void user_prompt_loop()
     	printf("%c", input[i]);
     }
     
+    printf("\n");
+    
+    
+    for(int i = 0; parsedInput[i] != NULL; i++){ //testing input reading
+    	printf("%s\n", parsedInput[i]);
+    }
+    
     exit(0);
 }
 
 
-char * get_user_command()
+char* get_user_command()
 {
     char* input = NULL;
     size_t length = 0;
     
     ssize_t read = getline(&input, &length, stdin);
     
-    if (read == -1){
+    if (read == -1){		//check if getline returns a value -1, indicating read failure
     	perror("Input read failed: ");
     	free(input);
     	return NULL;
@@ -85,28 +97,25 @@ char * get_user_command()
     return input;
 }
 
-/*
-parse_command():
-Take command grabbed from the user and parse appropriately.
-Example: 
-    user input: "ls -la"
-    parsed output: ["ls", "-la", NULL]
-Example: 
-    user input: "echo     hello                     world  "
-    parsed output: ["echo", "hello", "world", NULL]
-*/
 
-/*parse_command()*/
-/////////////////////{
-    /*
-    Functions you may need: 
-        malloc(), realloc(), free(), strlen(), first_unquoted_space(), unescape()
-    */
-
-    /*
-    ENTER YOUR CODE HERE
-    */
-///////////////////}
+char** parse_command(char *input)
+{
+	char *unescapedInput = unescape(input, stderr);		
+	//free(input);
+	
+	char **parsedInput = (char **)malloc(strlen(unescapedInput) * sizeof(char *));		//declare an array of strings and allocate enough memory
+	char *token;		//character array to store each command token
+	token = strtok(unescapedInput, " ");		//break command into tokens delimited by whitespaces
+	int i;
+	for(i = 0; token != NULL; i++){		//populate string array with the tokens
+    	parsedInput[i] = token;
+    	token = strtok(NULL, " ");
+    }
+    
+    parsedInput[i] = NULL;				//terminate the string array with NULL
+    
+    return parsedInput;
+}
 
 /*
 execute_command():
