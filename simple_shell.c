@@ -23,7 +23,6 @@ void user_prompt_loop();
 char * get_user_command();
 char ** parse_command(char *);
 void execute_command(char **);
-void removeChar(char *, char);
 void freeArray(char **);
 
 int main(int argc, char **argv)
@@ -59,7 +58,7 @@ void user_prompt_loop()
     	
     	parsedInput = parse_command(input);		//parse command
     	
-    	/*for(int i = 0; input[i] != '\0'; i++){ //testing input reading
+    	for(int i = 0; input[i] != '\0'; i++){ //testing input reading
     		printf("%c", input[i]);
     	}
 
@@ -67,7 +66,7 @@ void user_prompt_loop()
     
     	for(int i = 0; parsedInput[i] != NULL; i++){ //testing input parsing
     		printf("%s\n", parsedInput[i]);
-    	}*/
+    	}
     
     	execute_command(parsedInput);
 		free(input);
@@ -87,8 +86,12 @@ char* get_user_command()
     	fprintf(stderr, "shell error: input read failure\n");
     	free(input);
     	return NULL;
+    }	
+    
+    if (size > 0){
+    	input[size - 1] = '\0';			//remove endline character at the end of the string for manipulation purposes
     }
-    removeChar(input, '\n');			//remove endline character for manipulation purposes
+    
     
     return input;
 }
@@ -163,16 +166,6 @@ void execute_command(char **commandArr)
     return;
 }
 
-void removeChar(char *input, char remove){
-	int j = 0;
-	
-	for (int i = 0; input[i] != '\0'; i++){
-		if (input[i] != remove){
-			input[j++] = input[i];
-		}
-	}
-	input[j] = '\0';
-}
 
 void freeArray(char **arr){
 	for (int i = 0; arr[i] != NULL; i++){
