@@ -24,6 +24,9 @@ char * get_user_command();
 char ** parse_command(char *);
 void execute_command(char **);
 void freeArray(char **);
+char * getHistoryPath();
+void writeHistory(char *);
+void printHistory();
 
 int main(int argc, char **argv)
 {
@@ -51,6 +54,7 @@ void user_prompt_loop()
     while(1){
     	printf(">> ");
     	input = get_user_command();				//accept user command
+    	
     	if (input == NULL){
     	    free(input);
     	    exit(1);
@@ -58,19 +62,12 @@ void user_prompt_loop()
     	
     	parsedInput = parse_command(input);		//parse command
     	
-    	for(int i = 0; input[i] != '\0'; i++){ //testing input reading
-    		printf("%c", input[i]);
-    	}
-
-    	printf("\n\n");
-    
-    	for(int i = 0; parsedInput[i] != NULL; i++){ //testing input parsing
-    		printf("%s\n", parsedInput[i]);
-    	}
-    
+    	writeHistory(input);					//write input to history file
     	execute_command(parsedInput);
+    	
 		free(input);
-		free(parsedInput);
+		//free(parsedInput);
+		//freeArray(parsedInput);
     }
 }
 
@@ -128,7 +125,8 @@ void execute_command(char **commandArr)
 
     if ((strcmp(commandArr[0], "/proc") == 0) 
     	|| (strcmp(commandArr[0], "proc") == 0)
-    	|| (strcmp(commandArr[0], "exit") == 0)){		//check if command is proc or exit
+    	|| (strcmp(commandArr[0], "exit") == 0) 
+    	|| (strcmp(commandArr[0], "history") == 0)){		//check if command is proc, exit or history
     	
     	if (strcmp(commandArr[0], "exit") == 0){		//check if command is exit
     		if (tokens == 1){							//if no other argument is passed exit with code 0
@@ -146,6 +144,7 @@ void execute_command(char **commandArr)
     				}
     			}
     			if (digit){								//convert the string into its integer equivalent and return that as the exit code
+    				//freeArray(commandArr);
     				exit(atoi(tmp));
     			}
     		}
@@ -154,29 +153,137 @@ void execute_command(char **commandArr)
     		}
     	}
     	
+    	else if (strcmp(commandArr[0], "history") == 0){	//check if command is history
+    		printHistory();
+    	}
+    	
     	else{											//check if command is proc
     		printf("/proc or proc\n");
     	}
     }
     
-	else{												//if command if not proc or exit, fork and execute the command
-		printf("not proc or exit\n");
+	else{												//if command is not proc, history or exit, fork and execute the command
+		int code = fork();
+		
+		if(code == 0){									//if fork returns 0, execute the command in the child
+			if (execvp(commandArr[0], commandArr) == -1){		//handle execvp returning -1 on failure
+				fprintf(stderr, "shell error: command execution failed\n");
+				freeArray(commandArr);
+				return;
+			}
+		}
+		else if (code > 0){								//check that the parent process is successfully waiting for the child to complete
+			int status;
+			if (waitpid(code, &status, 0) == -1){
+				fprintf(stderr, "shell error: parent waiting unsuccessful\n");
+				freeArray(commandArr);
+				return;
+			}
+		}
+		else{
+			fprintf(stderr, "shell error: command execution failed\n");
+			freeArray(commandArr);
+			return;
+		}
 	}
     
+    free(commandArr);
     return;
 }
 
 
-void freeArray(char **arr){
-	for (int i = 0; arr[i] != NULL; i++){
-		free(arr[i]);
+void freeArray(char **commandArr){
+	for (int i = 0; commandArr[i] != NULL; i++){
+		free(commandArr[i]);
 	}
-	free(arr);
+	free(commandArr);
 }
 
+char * getHistoryPath(){
+	char *historyFile = ".421sh";
+	char *homeDir = getenv("HOME");
+	char *filePath = malloc(strlen(homeDir) + strlen(historyFile) + 2);		//assign memory to a string to store the file path
+	
+	if (!filePath){															//if filePath returns NULL then malloc failed
+		fprintf(stderr, "shell error: unable to access history file\n");
+	}
+	else {																	//if successful, format the path appropriately and store in filePath
+		sprintf(filePath, "%s%c%s", homeDir, '/', historyFile);
+	}
+	
+	return filePath;
+}
 
+void writeHistory(char *input){
+	char *filePath = getHistoryPath();									
+	if (!filePath){															//check to see if filePath was returned successfully
+		fprintf(stderr, "shell error: unable to access history file1\n");
+		return;
+	}
+	
+	FILE* file = fopen(filePath, "a");										//open file in append mode
+	free(filePath);
+	
+	if (!file){																//handle instance of file not opening successfully
+		fprintf(stderr, "shell error: unable to access history file2\n");
+		return;
+	}
+	
+	fprintf(file, "%s\n", input);											//write command to file
+	fclose(file);
+}
 
-
+void printHistory(){
+	char *filePath = getHistoryPath();
+	if (!filePath){															//check to see if filePath was returned successfully
+		fprintf(stderr, "shell error: unable to access history file\n");
+		return;
+	}
+	
+	FILE* file = fopen(filePath, "r");										//open file in read mode
+	free(filePath);
+	
+	if (!file){																//handle instance of file not opening successfully
+		fprintf(stderr, "shell error: unable to access history file\n");
+		return;
+	}
+	
+	char **lines = malloc(10 * sizeof(char *));
+	size_t len = 0;
+	char *line = NULL;
+	ssize_t size;
+	int i = 0;
+	
+	while ((size = getline(&line, &len, file)) != 1){
+		if (line[size - 1] == '\n'){
+			line[size - 1] = '\0';
+		}
+		
+		//free(lines[i]);
+		lines[i] = strndup(line, size);
+		free(line);
+		if(!lines[i]){
+			fprintf(stderr, "shell error: unable to print history\n");
+			return;
+		}
+		i = (i+1) % 10;
+	}
+	
+	for (int j = 0; j < 10; j++){
+		int k = (i + j) % 10;
+		if (lines[k]){
+			printf("%s\n", lines[k]);
+			free(lines[k]);
+		}
+		else{
+			fprintf(stderr, "shell error: unable to print history\n");
+			return;
+		}
+	}
+	
+	free(lines);
+	fclose(file);
+}
 
 
 
