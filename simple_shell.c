@@ -18,7 +18,7 @@ description: a simple linux shell designed to perform basic linux commands
 void user_prompt_loop();			//continuously loop and prompt the user for input after every operation
 char * get_user_command();			//accept user input of arbitrary length and return a character array
 char ** parse_command(char *);		//break user input into tokens/arguments and return a string array
-void execute_command(char **);		// and execute an operation based on the tokenized input
+void execute_command(char **);		//interprete and execute an operation based on the tokenized input
 void freeArray(char **);			//iteratively free allocated memory in a string array
 char * getHistoryPath();			//generate and return the path to the hidden history file (wasnt necessary but made sense at the time)
 void writeHistory(char *);			//append every command the user enters to a hidden history file ".421sh" in the user's home dir. create one if it does not already exist
