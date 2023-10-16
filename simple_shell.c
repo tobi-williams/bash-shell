@@ -1,8 +1,8 @@
 /*
 project: 01
-author: 
-email: 
-student id: 
+author: Tobi Williams
+email: owillia2@umbc.edu
+student id: JM29211
 description: a simple linux shell designed to perform basic linux commands
 */
 
@@ -14,19 +14,18 @@ description: a simple linux shell designed to perform basic linux commands
 #include <ctype.h>
 #include "utils.h"
 
-/*
-In this project, you are going to implement a number of functions to 
-create a simple linux shell interface to perform basic linux commands
-*/
 
-void user_prompt_loop();
-char * get_user_command();
-char ** parse_command(char *);
-void execute_command(char **);
-void freeArray(char **);
-char * getHistoryPath();
-void writeHistory(char *);
-void printHistory();
+void user_prompt_loop();			//continuously loop and prompt the user for input after every operation
+char * get_user_command();			//accept user input of arbitrary length and return a character array
+char ** parse_command(char *);		//break user input into tokens/arguments and return a string array
+void execute_command(char **);		// and execute an operation based on the tokenized input
+void freeArray(char **);			//iteratively free allocated memory in a string array
+char * getHistoryPath();			//generate and return the path to the hidden history file (wasnt necessary but made sense at the time)
+void writeHistory(char *);			//append every command the user enters to a hidden history file ".421sh" in the user's home dir. create one if it does not already exist
+void printHistory();				//print the last 10 commands stored in the history file to stdout, print all if less than 10
+void displayProc(char **);			//read information from the /proc filesystem and output to stdout
+
+
 
 int main(int argc, char **argv)
 {
@@ -66,8 +65,6 @@ void user_prompt_loop()
     	execute_command(parsedInput);
     	
 		free(input);
-		//free(parsedInput);
-		//freeArray(parsedInput);
     }
 }
 
@@ -109,7 +106,6 @@ char** parse_command(char *input)
     }
     
     parsedInput[i] = NULL;						//terminate the string array with NULL
-    //free(unescapedInput);
     
     return parsedInput;
 }
@@ -144,7 +140,6 @@ void execute_command(char **commandArr)
     				}
     			}
     			if (digit){								//convert the string into its integer equivalent and return that as the exit code
-    				//freeArray(commandArr);
     				exit(atoi(tmp));
     			}
     		}
@@ -158,7 +153,12 @@ void execute_command(char **commandArr)
     	}
     	
     	else{											//check if command is proc
-    		printf("/proc or proc\n");
+    		if (tokens != 2){
+    			fprintf(stderr, "shell error: proc command requires two arguments\n");
+    		}
+    		else{
+    			displayProc(commandArr);
+    		}	
     	}
     }
     
@@ -248,32 +248,30 @@ void printHistory(){
 		return;
 	}
 	
-	char **lines = malloc(10 * sizeof(char *));
+	char *commands[10] = {NULL};
 	size_t len = 0;
-	char *line = NULL;
+	char *command = NULL;
 	ssize_t size;
 	int i = 0;
 	
-	while ((size = getline(&line, &len, file)) != 1){
-		if (line[size - 1] == '\n'){
-			line[size - 1] = '\0';
+	while ((size = getline(&command, &len, file)) != -1){					//read from history file
+		if (command[size - 1] == '\n'){										//
+			command[size - 1] = '\0';
 		}
 		
-		//free(lines[i]);
-		lines[i] = strndup(line, size);
-		free(line);
-		if(!lines[i]){
+		commands[i] = strndup(command, size);								//put each read command into our buffer
+		if(!commands[i]){
 			fprintf(stderr, "shell error: unable to print history\n");
 			return;
 		}
-		i = (i+1) % 10;
+		i = (i+1) % 10;														//increment or roll back around after every 10 items
 	}
 	
-	for (int j = 0; j < 10; j++){
+	for (int j = 0; j < 10; j++){											//print the 10 commands in our buffer
 		int k = (i + j) % 10;
-		if (lines[k]){
-			printf("%s\n", lines[k]);
-			free(lines[k]);
+		if (commands[k]){
+			printf("%s\n", commands[k]);
+			free(commands[k]);
 		}
 		else{
 			fprintf(stderr, "shell error: unable to print history\n");
@@ -281,15 +279,38 @@ void printHistory(){
 		}
 	}
 	
-	free(lines);
+	free(command);
 	fclose(file);
 }
 
-
-
-
-
-
+void displayProc(char **commandArr){
+	char arg[128];
+	char procPath[256];
+	
+	sprintf(arg, "%s", commandArr[1]);										
+	sprintf(procPath, "%s%s", "/proc/", arg);								//concatenate /proc/ and the second argument to create a path
+		
+	FILE *file = fopen(procPath, "r");
+		
+	if(file == NULL){														//error if file returned null
+		fprintf(stderr, "shell error: unable to access /proc file\n");
+		return;
+	}
+		
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t size;
+		
+	while((size = getline(&line, &len, file)) != -1){						//use getline to read input from /proc
+		printf("%s", line);													
+	}
+	printf("\n");
+	free(line);
+	fclose(file);
+}	
+	
+	
+	
 
 
 
